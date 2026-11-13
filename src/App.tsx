@@ -21,7 +21,15 @@ const TrainBackdrop = lazy(() => import('./TrainBackdrop'))
 
 type Filter = '全部' | StockCategory
 
-const filters: Filter[] = ['全部', '机车', '客车', '货车']
+const filters: Filter[] = [
+  '全部',
+  '机车',
+  '客车',
+  '货车',
+  '转向架与轨道',
+  '供电与联锁',
+  '站车设施与餐饮',
+]
 
 function Header() {
   return (
@@ -55,7 +63,11 @@ function Hero() {
         <div className="hero-stage-spacer" aria-hidden="true" />
 
         <div className="hero-card">
-          <h1 id="hero-title">跨越中国铁路的每段里程</h1>
+          <h1 id="hero-title">
+            跨越中国铁路的
+            <br />
+            每段里程
+          </h1>
           <p className="hero-lead">
             KuaYue 跨越是一款基于 Minecraft 1.21.1、NeoForge 与 Create 机械动力的中国铁路模组。
             从流线车头、可开合门窗到转向架、接触网与车站联锁，每一列火车都在铁轨上逐块亲手拼装成型。
@@ -117,6 +129,9 @@ function StockTable() {
       机车: rollingStock.filter((r) => r.category === '机车').length,
       客车: rollingStock.filter((r) => r.category === '客车').length,
       货车: rollingStock.filter((r) => r.category === '货车').length,
+      转向架与轨道: rollingStock.filter((r) => r.category === '转向架与轨道').length,
+      供电与联锁: rollingStock.filter((r) => r.category === '供电与联锁').length,
+      站车设施与餐饮: rollingStock.filter((r) => r.category === '站车设施与餐饮').length,
     }),
     [],
   )
@@ -128,7 +143,7 @@ function StockTable() {
 
   return (
     <div className="table-wrap">
-      <div className="filters" role="group" aria-label="按车辆类型筛选">
+      <div className="filters" role="group" aria-label="按图鉴分类筛选">
         {filters.map((item) => {
           const active = filter === item
           return (
@@ -147,7 +162,7 @@ function StockTable() {
 
       <div className="table-container">
         <table>
-          <caption>KuaYue 模组现有机车、客车与货车图鉴</caption>
+          <caption>KuaYue 模组机车车辆、供电接触网与站车设施全系图鉴</caption>
           <thead>
             <tr>
               <th scope="col">型号</th>
@@ -400,8 +415,8 @@ export function App() {
 
           <Section
             id="stock"
-            title="车辆、转向架与轨道"
-            description="收录多时代干线内燃、电力机车、动集与客货车辆，配套专用转向架与五种规制铁轨。"
+            title="模组全系图鉴与工程谱系"
+            description="收录机车、客货车辆、转向架、轨道、高压接触网、信号联锁以及驾驶台、蓝图桌与列车餐饮等全系内容。"
           >
             <StockTable />
 

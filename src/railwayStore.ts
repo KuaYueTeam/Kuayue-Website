@@ -1,5 +1,5 @@
 import { useSyncExternalStore } from 'react'
-import { type ModelKey, type PageSectionKey, type PartKey, type ViewPresetKey } from './data'
+import { showcaseModels, type ModelKey, type PageSectionKey, type PartKey, type ViewPresetKey } from './data'
 
 export type SwapState = 'idle' | 'departing' | 'arriving'
 
@@ -128,13 +128,21 @@ export function setActiveSection(sectionId: PageSectionKey): void {
 
 export function selectModel(modelId: ModelKey): void {
   if (modelId === state.modelId && state.swapState === 'idle') return
+  const curSpec = showcaseModels.find((m) => m.id === state.modelId)
+  const nextSpec = showcaseModels.find((m) => m.id === modelId)
   patchRailwayState({
     partId: 'all',
     viewId: 'overview',
     exploded: false,
   })
   if (driver.swapToModel) {
-    driver.swapToModel(modelId, state.exploded || state.reducedMotion || !state.running)
+    const instant =
+      state.exploded ||
+      state.reducedMotion ||
+      !state.running ||
+      !curSpec?.cruisable ||
+      !nextSpec?.cruisable
+    driver.swapToModel(modelId, instant)
   } else {
     patchRailwayState({
       modelId,

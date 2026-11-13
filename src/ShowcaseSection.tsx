@@ -35,6 +35,21 @@ export function ShowcaseSection() {
   const activeSectionMeta =
     sectionCameraList.find((s) => s.id === activeSection) ?? sectionCameraList[0]
 
+  const vehicleModels = showcaseModels.filter((m) => m.category === '机车车辆')
+  const componentModels = showcaseModels.filter((m) => m.category === '非车体组件')
+  const visibleParts = showcaseParts.filter((p) => activeModel.visibleParts.includes(p.id))
+
+  const getPartMeta = (part: (typeof showcaseParts)[number]) => {
+    const ov = activeModel.partOverrides?.[part.id]
+    return {
+      id: part.id,
+      label: ov?.label ?? part.label,
+      description: ov?.description ?? part.description,
+      craftNote: ov?.craftNote ?? part.craftNote,
+    }
+  }
+  const resolvedActivePart = getPartMeta(activePart)
+
   const setPortalRef = useCallback((el: HTMLDivElement | null) => {
     setPortalElement(el)
   }, [])
@@ -46,34 +61,58 @@ export function ShowcaseSection() {
         ? `${activeSectionMeta.label} · 新车进场巡航`
         : exploded
           ? `${activeSectionMeta.label} · 分层拆解视图`
-          : running && !reducedMotion
-            ? `${activeSectionMeta.label} · 轮对转动与路轨推进`
-            : `${activeSectionMeta.label} · 静止检修视图`
+          : !activeModel.scrollTrack
+            ? `${activeSectionMeta.label} · 静止结构检视`
+            : running && !reducedMotion
+              ? `${activeSectionMeta.label} · 轮对转动与路轨推进`
+              : `${activeSectionMeta.label} · 静止检修视图`
 
   return (
     <section className="section showcase-section" id="example" aria-labelledby="example-title">
       <div className="container showcase-deck">
         <div className="showcase-sheet">
           <div className="showcase-header">
-            <h2 id="example-title">DF11 / DF11G 三维拼装检视</h2>
+            <h2 id="example-title">三维模型与工程组件检视</h2>
             <p>
-              页面背景中驶过的列车即可在此处直接接管交互：切换机型与机位、拖动旋转观察细节，或展开六层车体查看实际拼装位置。
+              页面背景中驶过的列车即可在此处直接接管交互；除整车机车外，亦可切换检视 SW-220K 转向架、格构接触网硬横跨以及驾驶台与站车餐饮等非车体总成。
             </p>
           </div>
 
           <div className="showcase-toolbar">
-            <div className="showcase-group" role="group" aria-label="选择展示机型">
-              {showcaseModels.map((model) => (
-                <button
-                  key={model.id}
-                  type="button"
-                  className="chip"
-                  aria-pressed={model.id === modelId}
-                  onClick={() => selectModel(model.id)}
-                >
-                  {model.label}
-                </button>
-              ))}
+            <div className="showcase-model-rows">
+              <div className="showcase-row">
+                <span className="showcase-row-label">机车车辆</span>
+                <div className="showcase-group" role="group" aria-label="选择机车与车辆展示">
+                  {vehicleModels.map((model) => (
+                    <button
+                      key={model.id}
+                      type="button"
+                      className="chip"
+                      aria-pressed={model.id === modelId}
+                      onClick={() => selectModel(model.id)}
+                    >
+                      {model.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="showcase-row">
+                <span className="showcase-row-label">非车体组件</span>
+                <div className="showcase-group" role="group" aria-label="选择非车体组件展示">
+                  {componentModels.map((model) => (
+                    <button
+                      key={model.id}
+                      type="button"
+                      className="chip"
+                      aria-pressed={model.id === modelId}
+                      onClick={() => selectModel(model.id)}
+                    >
+                      {model.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
             </div>
 
             <div className="showcase-actions" role="group" aria-label="镜头视角预设">
@@ -97,7 +136,7 @@ export function ShowcaseSection() {
             className="showcase-portal"
             ref={setPortalRef}
             role="region"
-            aria-label="DF11 与 DF11G 三维交互视口"
+            aria-label="KuaYue 模组三维模型交互视口"
           >
             {webglUnsupported ? (
               <div className="showcase-fallback" role="status">
@@ -115,7 +154,7 @@ export function ShowcaseSection() {
           </div>
 
           <div className="hud-bottom">
-            <p className="hud-hint">左键拖动旋转 · 右键平移 · 点击车体选择部件</p>
+            <p className="hud-hint">左键拖动旋转 · 右键平移 · 点击模型选择部件</p>
             <div className="hud-controls" role="group" aria-label="运转、景别与拆解控制">
               <button
                 type="button"
@@ -185,35 +224,38 @@ export function ShowcaseSection() {
             </p>
           ) : null}
 
-          <div className="showcase-parts" role="group" aria-label="机车部件层级视角">
-            {showcaseParts.map((part) => (
-              <button
-                key={part.id}
-                type="button"
-                className="chip"
-                aria-pressed={part.id === partId}
-                onClick={() => selectPart(part.id)}
-              >
-                {part.label}
-              </button>
-            ))}
+          <div className="showcase-parts" role="group" aria-label="模型部件层级视角">
+            {visibleParts.map((part) => {
+              const meta = getPartMeta(part)
+              return (
+                <button
+                  key={part.id}
+                  type="button"
+                  className="chip"
+                  aria-pressed={part.id === partId}
+                  onClick={() => selectPart(part.id)}
+                >
+                  {meta.label}
+                </button>
+              )
+            })}
           </div>
 
           <div className="showcase-readout" aria-live="polite">
             <div className="readout-head">
               <strong>
-                {activeModel.label} · {activePart.label}
+                {activeModel.label} · {resolvedActivePart.label}
               </strong>
-              {partStats ? <span className="readout-meta">{partStats}</span> : null}
+              <span className="readout-meta">{partStats || activeModel.dimensions}</span>
             </div>
             <p>{activeModel.subtitle}</p>
             <p>
               <strong>部件说明：</strong>
-              {activePart.description}
+              {resolvedActivePart.description}
             </p>
             <p className="readout-tip">
               <strong>模组玩法：</strong>
-              {activePart.craftNote}
+              {resolvedActivePart.craftNote}
             </p>
           </div>
         </div>

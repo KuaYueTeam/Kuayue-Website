@@ -191,10 +191,10 @@ function computeDesiredFraming(
   const hero = getHeroElement()
   if (section === 'top' || (hero && hero.getBoundingClientRect().bottom > vh * 0.48)) {
     if (vw >= 960) {
-      // Shift train right-of-center & scale slightly so entire front cab & cowcatcher clear Hero card
-      return { x: -vw * 0.18, y: vh * 0.04, zoom: 0.84, inPortal: false }
+      // Shift train right and centered-high so left unboxed Hero + facts stay clear of cowcatcher
+      return { x: -vw * 0.285, y: vh * 0.02, zoom: 0.76, inPortal: false }
     }
-    return { x: 0, y: vh * 0.19, zoom: 0.92, inPortal: false }
+    return { x: 0, y: vh * 0.22, zoom: 0.9, inPortal: false }
   }
 
   return { x: 0, y: 0, zoom: 0.86, inPortal: false }
@@ -402,42 +402,58 @@ export function TrainBackdrop() {
       return prom
     }
 
+    const PREFETCH_IDS: ModelKey[] = ['df11g-head', 'hxd3d']
+
+    const getModelSpec = (id: ModelKey) =>
+      showcaseModels.find((m) => m.id === id) ?? showcaseModels[0]
+
     const prefetchRemainingModels = () => {
-      for (const spec of showcaseModels) {
-        if (!assetCache.has(spec.id) && !inFlightLoads.has(spec.id)) {
-          void loadTrainAsset(spec.id)
+      for (const id of PREFETCH_IDS) {
+        if (!assetCache.has(id) && !inFlightLoads.has(id)) {
+          void loadTrainAsset(id)
         }
       }
     }
 
     const syncAssetPartPose = (asset: CachedTrainAsset, exploded: boolean) => {
+      const spec = getModelSpec(asset.id)
+      const explodeScale = spec.category === '非车体组件' ? 0.34 : 1
       for (const [k, offset] of Object.entries(EXPLODED_Y)) {
         const grp = asset.groups[k as Exclude<PartKey, 'all'>]
-        if (grp) grp.position.y = exploded ? offset : 0
+        if (grp) grp.position.y = exploded ? offset * explodeScale : 0
       }
       if (asset.groups.track) {
-        asset.groups.track.visible = corridorRailInstanced.length === 0
+        asset.groups.track.visible = !spec.showCorridor || corridorRailInstanced.length === 0
       }
+    }
+
+    const syncCorridorVisibility = (id: ModelKey) => {
+      corridorRoot.visible = getModelSpec(id).showCorridor
     }
 
     const finalizeSwapImmediate = (target: CachedTrainAsset) => {
       if (swapAnim) {
         swapAnim.outgoing.root.position.x = 0
-        if (swapAnim.outgoing.root !== target.root) {
-          modelRoot.remove(swapAnim.outgoing.root)
-        }
+        swapAnim.incoming.root.position.x = 0
         swapAnim = null
+      }
+      // Clear every model except target from modelRoot so aborted swapAnim.incoming never lingers
+      for (const child of [...modelRoot.children]) {
+        if (child !== target.root) {
+          child.position.x = 0
+          modelRoot.remove(child)
+        }
       }
       if (activeAsset && activeAsset !== target) {
         activeAsset.root.position.x = 0
-        modelRoot.remove(activeAsset.root)
       }
       target.root.position.x = 0
       syncAssetPartPose(target, getRailwayState().exploded)
+      syncCorridorVisibility(target.id)
       if (!target.root.parent) modelRoot.add(target.root)
       activeAsset = target
 
-      const spec = showcaseModels.find((m) => m.id === target.id) ?? showcaseModels[0]
+      const spec = getModelSpec(target.id)
       if (controls) {
         controls.minDistance = spec.minDistance
         controls.maxDistance = spec.maxDistance
@@ -451,13 +467,12 @@ export function TrainBackdrop() {
     }
 
     const flyToPoseForCurrentContext = (section: PageSectionKey, modelId: ModelKey) => {
-      const spec = showcaseModels.find((m) => m.id === modelId) ?? showcaseModels[0]
+      const spec = getModelSpec(modelId)
       if (section === 'example') {
         const st = getRailwayState()
         const pose =
-          st.partId !== 'all'
-            ? spec.partCameras[st.partId]
-            : spec.viewPresets[st.viewId ?? 'overview']
+          (st.partId !== 'all' ? spec.partCameras[st.partId] : undefined) ??
+          spec.viewPresets[st.viewId ?? 'overview']
         desiredCamPos = new THREE.Vector3(...pose.position)
         desiredTarget = new THREE.Vector3(...pose.target)
       } else {
@@ -468,25 +483,33 @@ export function TrainBackdrop() {
     }
 
     let requestRenderFn: () => void = () => {}
+    let swapToken = 0
 
     const startPassingTransition = async (nextId: ModelKey, fast = false) => {
+      const token = ++swapToken
       const nextAsset = await loadTrainAsset(nextId)
-      if (disposed || !nextAsset) return
+      if (disposed || !nextAsset || token !== swapToken) return
       const st = getRailwayState()
 
-      // Fallback to instant mount if no current train, paused, exploded, reduced-motion, or already mid-swap
-      if (!activeAsset || st.exploded || !st.running || st.reducedMotion || swapAnim) {
+      const canSlide =
+        activeAsset !== null &&
+        getModelSpec(activeAsset.id).cruisable &&
+        getModelSpec(nextId).cruisable
+
+      // Fallback to instant mount if non-cruisable, paused, exploded, reduced-motion, or mid-swap
+      if (!canSlide || st.exploded || !st.running || st.reducedMotion || swapAnim) {
         finalizeSwapImmediate(nextAsset)
         flyToPoseForCurrentContext(st.activeSection, nextId)
         requestRenderFn()
         return
       }
 
-      if (activeAsset.id === nextId) return
+      if (activeAsset && activeAsset.id === nextId) return
 
-      const outgoing = activeAsset
+      const outgoing = activeAsset!
       outgoing.root.position.x = 0
       syncAssetPartPose(nextAsset, false)
+      syncCorridorVisibility(nextId)
       const startXIn = 56
       nextAsset.root.position.x = startXIn
       if (!nextAsset.root.parent) modelRoot.add(nextAsset.root)
@@ -507,10 +530,11 @@ export function TrainBackdrop() {
 
     const scheduleRandomSwap = () => {
       clearSwapTimer()
-      const delay = 11_000 + Math.random() * 6_000
+      const delay = 18_000 + Math.random() * 8_000
       swapTimerId = window.setTimeout(() => {
         if (disposed) return
         const st = getRailwayState()
+        const curSpec = getModelSpec(st.modelId)
         if (
           st.running &&
           !st.exploded &&
@@ -518,9 +542,13 @@ export function TrainBackdrop() {
           !isDocumentHidden &&
           !swapAnim &&
           !userInteracting &&
-          st.activeSection !== 'example'
+          st.activeSection !== 'example' &&
+          curSpec.cruisable &&
+          curSpec.category === '机车车辆'
         ) {
-          const candidates = showcaseModels.filter((m) => m.id !== st.modelId)
+          const candidates = showcaseModels.filter(
+            (m) => m.id !== st.modelId && m.cruisable && m.category === '机车车辆',
+          )
           if (candidates.length > 0) {
             const pick = candidates[Math.floor(Math.random() * candidates.length)]
             void startPassingTransition(pick.id, false)
@@ -547,6 +575,7 @@ export function TrainBackdrop() {
         controls.update()
       }
       prefetchRemainingModels()
+      scheduleRandomSwap()
       requestRenderFn()
     }
 
@@ -568,7 +597,10 @@ export function TrainBackdrop() {
         }
 
         const isCruising = st.running && !st.exploded && !st.reducedMotion
-        if (isCruising) {
+        const activeSpec = activeAsset ? getModelSpec(activeAsset.id) : null
+        const shouldScroll = swapAnim !== null || (activeSpec?.scrollTrack ?? true)
+
+        if (isCruising && (swapAnim !== null || (activeSpec?.cruisable ?? false))) {
           const dist = CRUISE_SPEED_BPS * dt
           const baseAngle = dist / WHEEL_RADIUS
 
@@ -619,18 +651,21 @@ export function TrainBackdrop() {
             for (const w of activeAsset.wheels) {
               w.rotation.z += baseAngle
             }
+            moving = true
           }
 
-          railScroll = (railScroll + dist) % 1.0
-          for (const im of corridorRailInstanced) {
-            for (let i = 0; i < RAIL_SEGMENTS; i += 1) {
-              dummy.position.set(i - RAIL_SEGMENTS / 2 + 0.5 + railScroll, 0, 0)
-              dummy.updateMatrix()
-              im.setMatrixAt(i, dummy.matrix)
+          if (shouldScroll) {
+            railScroll = (railScroll + dist) % 1.0
+            for (const im of corridorRailInstanced) {
+              for (let i = 0; i < RAIL_SEGMENTS; i += 1) {
+                dummy.position.set(i - RAIL_SEGMENTS / 2 + 0.5 + railScroll, 0, 0)
+                dummy.updateMatrix()
+                im.setMatrixAt(i, dummy.matrix)
+              }
+              im.instanceMatrix.needsUpdate = true
             }
-            im.instanceMatrix.needsUpdate = true
+            moving = true
           }
-          moving = true
         }
 
         // Smooth view offset & zoom interpolation between Hero, reading sections, and #example portal
@@ -653,7 +688,8 @@ export function TrainBackdrop() {
 
         // Smooth vertical exploded assembly
         if (activeAsset && !swapAnim) {
-          const explodeFactor = st.exploded ? 1 : 0
+          const explodeScale = getModelSpec(activeAsset.id).category === '非车体组件' ? 0.34 : 1
+          const explodeFactor = st.exploded ? explodeScale : 0
           const expStep = st.reducedMotion ? 1 : 1 - Math.exp(-8 * dt)
           for (const [k, offset] of Object.entries(EXPLODED_Y)) {
             const grp = activeAsset.groups[k as Exclude<PartKey, 'all'>]
@@ -845,8 +881,12 @@ export function TrainBackdrop() {
       corridorRailInstanced = railInsts
       for (const cached of assetCache.values()) {
         if (cached.groups.track) {
-          cached.groups.track.visible = railInsts.length === 0
+          const spec = getModelSpec(cached.id)
+          cached.groups.track.visible = !spec.showCorridor || railInsts.length === 0
         }
+      }
+      if (activeAsset) {
+        syncCorridorVisibility(activeAsset.id)
       }
       disposeObjectTree(gltf.scene)
       requestRender()
@@ -880,8 +920,9 @@ export function TrainBackdrop() {
       },
       swapToModel(nextId, instant) {
         if (instant || !assetCache.has(nextId)) {
+          const token = ++swapToken
           void loadTrainAsset(nextId).then((asset) => {
-            if (disposed || !asset) return
+            if (disposed || !asset || token !== swapToken) return
             finalizeSwapImmediate(asset)
             flyToPoseForCurrentContext(getRailwayState().activeSection, nextId)
             requestRender()
@@ -893,7 +934,9 @@ export function TrainBackdrop() {
       triggerPassingSwap() {
         const st = getRailwayState()
         const currentId = swapAnim ? swapAnim.incoming.id : st.modelId
-        const candidates = showcaseModels.filter((m) => m.id !== currentId)
+        const candidates = showcaseModels.filter(
+          (m) => m.id !== currentId && m.cruisable && m.category === '机车车辆',
+        )
         if (candidates.length === 0) return
         const pick = candidates[Math.floor(Math.random() * candidates.length)]
         if (!st.running) {
@@ -973,7 +1016,6 @@ export function TrainBackdrop() {
 
     applySize()
     void mountInitialModel(initial.modelId)
-    scheduleRandomSwap()
 
     window.addEventListener('resize', onScrollOrResize, { passive: true })
     window.addEventListener('scroll', onScrollOnly, { passive: true })
