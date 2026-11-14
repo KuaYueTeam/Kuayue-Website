@@ -148,7 +148,7 @@ export type ModelKey =
 
 export type PartKey = 'all' | 'head' | 'cowcatcher' | 'body' | 'roof' | 'underbody' | 'track'
 export type ViewPresetKey = 'overview' | 'trackside' | 'cab' | 'bogey'
-export type PageSectionKey = 'top' | 'features' | 'example' | 'stock' | 'getting-started'
+export type PageSectionKey = 'top' | 'features' | 'example' | 'gallery' | 'stock' | 'getting-started'
 
 export interface SectionCameraMeta {
   id: PageSectionKey
@@ -159,6 +159,7 @@ export const sectionCameraList: SectionCameraMeta[] = [
   { id: 'top', label: '全景巡航' },
   { id: 'features', label: '路基近景' },
   { id: 'example', label: '交互检视' },
+  { id: 'gallery', label: '实景光影' },
   { id: 'stock', label: '侧视谱系' },
   { id: 'getting-started', label: '前瞻调度' },
 ]
@@ -202,6 +203,11 @@ export function getSectionCameraPose(section: PageSectionKey, modelId: ModelKey)
       return {
         position: [-18.5 * s, 6.8 * Math.max(0.92, s * 0.8), 16.5 * s],
         target: [0, 2.2, 0],
+      }
+    case 'gallery':
+      return {
+        position: [-10.5 * s, 3.3 * Math.max(0.88, s * 0.85), -14.8 * s],
+        target: [0, 2.0, 0],
       }
     case 'stock':
       return {
@@ -665,6 +671,54 @@ export const showcaseParts: ShowcasePartSpec[] = [
     label: '标准轨距铁轨',
     description: '模组内置标准轨距铁轨、护轮轨、米轨、无砟轨道与无枕轨道五种规制，轨枕与扣件按真车比例建模。',
     craftNote: '轨道可铺设直线、斜向与坡道区段，并与轨道绝缘节、信号机共同纳入车站联锁区段。',
+  },
+]
+
+export interface SceneGalleryItem {
+  id: string
+  tag: string
+  title: string
+  description: string
+  alt: string
+  avifSrc: string
+  avifSrcSet: string
+  webpSrc: string
+  webpSrcSet: string
+  fallbackSrc: string
+  width: number
+  height: number
+}
+
+export const galleryScenes: SceneGalleryItem[] = [
+  {
+    id: 'crossing',
+    tag: '01 · 街区道口',
+    title: '平交道口与内燃本务',
+    description:
+      '暖阳斜照的城市街角，黄红道口栏木落下，蓝白涂装内燃机车牵引平车在架空接触网下缓缓穿行过斑马线与瓦顶道口房旁。',
+    alt: '夕阳斜照下的 Minecraft 游戏实景：街边小楼与斑马线旁道口栏杆落下，一列蓝白涂装内燃机车正在架空接触网下方驶过平交道口',
+    avifSrc: '/images/scene-crossing-1024.avif',
+    avifSrcSet: '/images/scene-crossing-640.avif 640w, /images/scene-crossing-1024.avif 1024w',
+    webpSrc: '/images/scene-crossing-1024.webp',
+    webpSrcSet: '/images/scene-crossing-640.webp 640w, /images/scene-crossing-1024.webp 1024w',
+    fallbackSrc: '/images/scene-crossing-1024.jpg',
+    width: 1024,
+    height: 576,
+  },
+  {
+    id: 'sunset-ss3',
+    tag: '02 · 暮色明洞',
+    title: '夕阳明洞与韶山干线',
+    description:
+      '黄金时刻逆光洒满依山傍水的单线电气化区段，升起单臂受电弓的韶山电力机车牵引绿皮客车弯道穿出混凝土明洞，沿接触网腕臂支柱驶向远方城郭。',
+    alt: '夕阳逆光下的 Minecraft 游戏实景：浅绿配深红涂装的韶山电力机车升起单臂受电弓，牵引绿皮客车穿过山侧混凝土明洞与电气化接触网支柱',
+    avifSrc: '/images/scene-sunset-ss3-1024.avif',
+    avifSrcSet: '/images/scene-sunset-ss3-640.avif 640w, /images/scene-sunset-ss3-1024.avif 1024w',
+    webpSrc: '/images/scene-sunset-ss3-1024.webp',
+    webpSrcSet: '/images/scene-sunset-ss3-640.webp 640w, /images/scene-sunset-ss3-1024.webp 1024w',
+    fallbackSrc: '/images/scene-sunset-ss3-1024.jpg',
+    width: 1024,
+    height: 576,
   },
 ]
 

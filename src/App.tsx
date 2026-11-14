@@ -15,6 +15,7 @@ import {
   setActiveSection,
   setHeroElement,
 } from './railwayStore'
+import { GallerySection } from './GallerySection'
 import { ShowcaseSection } from './ShowcaseSection'
 
 const TrainBackdrop = lazy(() => import('./TrainBackdrop'))
@@ -41,6 +42,7 @@ function Header() {
         <nav className="site-nav" aria-label="主导航">
           <a href="#features">核心玩法</a>
           <a href="#example">3D 检视</a>
+          <a href="#gallery">实景画面</a>
           <a href="#stock">车辆图鉴</a>
           <a href="#getting-started">游玩准备</a>
           <a href={REPO_URL} target="_blank" rel="noreferrer">
@@ -195,7 +197,14 @@ export function App() {
   const scrimInnerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    const sectionIds: PageSectionKey[] = ['top', 'features', 'example', 'stock', 'getting-started']
+    const sectionIds: PageSectionKey[] = [
+      'top',
+      'features',
+      'example',
+      'gallery',
+      'stock',
+      'getting-started',
+    ]
     const sections = sectionIds
       .map((id) => document.getElementById(id))
       .filter((el): el is HTMLElement => el !== null)
@@ -412,6 +421,8 @@ export function App() {
           </Section>
 
           <ShowcaseSection />
+
+          <GallerySection />
 
           <Section
             id="stock"
