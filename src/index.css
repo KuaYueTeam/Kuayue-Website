@@ -1060,16 +1060,23 @@ a {
   height: calc(100dvh - var(--story-top));
   width: 100%;
   overflow: clip;
-  background: var(--bg);
+  background: #101113;
   z-index: 1;
-  -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 92%, transparent 100%);
-  mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 92%, transparent 100%);
+}
+
+.scene-story-stage::after {
+  content: '';
+  position: absolute;
+  inset: 0;
+  background: rgba(10, 12, 16, 0.38);
+  pointer-events: none;
+  z-index: 2;
 }
 
 .scene-story-layer {
   position: absolute;
   inset: 0;
-  background: var(--bg);
+  background: #101113;
 }
 
 .scene-story-layer-2 {
@@ -1087,22 +1094,12 @@ a {
   object-fit: cover;
 }
 
-.scene-story-pic-1 {
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.74) 44%, #000 60%);
-  mask-image: linear-gradient(to top, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.74) 44%, #000 60%);
-}
-
-.scene-story-pic-2 {
-  -webkit-mask-image: linear-gradient(to top, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.74) 44%, #000 60%);
-  mask-image: linear-gradient(to top, transparent 0%, transparent 28%, rgba(0, 0, 0, 0.74) 44%, #000 60%);
-}
-
 .scene-story-pic-1 img {
-  object-position: 62% 28%;
+  object-position: 64% 50%;
 }
 
 .scene-story-pic-2 img {
-  object-position: 32% 68%;
+  object-position: 36% 58%;
 }
 
 @media (min-width: 48rem) {
@@ -1112,18 +1109,6 @@ a {
 
   .scene-story-pic-2 img {
     object-position: 46% 52%;
-  }
-}
-
-@media (min-width: 60rem) {
-  .scene-story-pic-1 {
-    -webkit-mask-image: linear-gradient(to right, transparent 0%, transparent 19%, rgba(0, 0, 0, 0.78) 35%, #000 50%);
-    mask-image: linear-gradient(to right, transparent 0%, transparent 19%, rgba(0, 0, 0, 0.78) 35%, #000 50%);
-  }
-
-  .scene-story-pic-2 {
-    -webkit-mask-image: radial-gradient(ellipse 46% 56% at 86% 90%, transparent 28%, rgba(0, 0, 0, 0.76) 62%, #000 84%);
-    mask-image: radial-gradient(ellipse 46% 56% at 86% 90%, transparent 28%, rgba(0, 0, 0, 0.76) 62%, #000 84%);
   }
 }
 
@@ -1138,7 +1123,7 @@ a {
 .scene-story-rail {
   width: 100%;
   height: 2px;
-  background: rgba(128, 130, 136, 0.24);
+  background: rgba(247, 246, 242, 0.28);
   overflow: hidden;
 }
 
@@ -1146,7 +1131,7 @@ a {
   display: block;
   width: 100%;
   height: 100%;
-  background: var(--accent);
+  background: #7dd3b5;
   transform-origin: 0 50%;
   transform: scaleX(0);
 }
@@ -1169,6 +1154,8 @@ a {
   padding: 0;
   background: transparent;
   border: none;
+  color: #f7f6f2;
+  text-shadow: 0 1px 14px rgba(8, 10, 14, 0.8);
   pointer-events: auto;
 }
 
@@ -1183,7 +1170,7 @@ a {
 .scene-intro-bar p {
   margin: 0;
   font-size: 0.875rem;
-  color: var(--hero-muted);
+  color: rgba(247, 246, 242, 0.86);
   text-wrap: pretty;
 }
 
@@ -1223,6 +1210,8 @@ a {
   padding: 0;
   background: transparent;
   border: none;
+  color: #f7f6f2;
+  text-shadow: 0 1px 14px rgba(8, 10, 14, 0.82);
   display: grid;
   gap: 0.5rem;
 }
@@ -1246,14 +1235,14 @@ a {
 }
 
 .scene-note-head .card-index {
-  color: var(--hero-muted);
+  color: rgba(247, 246, 242, 0.8);
 }
 
 .scene-expand-link {
   padding: 0;
   border: 0;
   background: transparent;
-  color: var(--accent);
+  color: #9ae6cb;
   font-family: var(--sans);
   font-size: 0.8125rem;
   font-weight: 500;
@@ -1264,7 +1253,7 @@ a {
 }
 
 .scene-expand-link:hover {
-  color: var(--accent-hover);
+  color: #d1fae5;
 }
 
 .scene-note h3 {
@@ -1283,7 +1272,7 @@ a {
   max-width: 34ch;
   font-size: 0.9375rem;
   line-height: 1.68;
-  color: var(--hero-muted);
+  color: rgba(247, 246, 242, 0.9);
   text-wrap: pretty;
 }
 
@@ -1359,8 +1348,29 @@ a {
     width: 100%;
     height: min(62dvh, 36rem);
     overflow: hidden;
-    -webkit-mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 88%, transparent 100%);
-    mask-image: linear-gradient(to bottom, transparent 0%, #000 7%, #000 88%, transparent 100%);
+  }
+
+  .scene-intro-bar,
+  .scene-note {
+    color: var(--text);
+    text-shadow: none;
+  }
+
+  .scene-intro-bar p,
+  .scene-note p {
+    color: var(--hero-muted);
+  }
+
+  .scene-note-head .card-index {
+    color: var(--muted);
+  }
+
+  .scene-expand-link {
+    color: var(--accent);
+  }
+
+  .scene-expand-link:hover {
+    color: var(--accent-hover);
   }
 
   .scene-step-container {
