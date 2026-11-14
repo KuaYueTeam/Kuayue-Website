@@ -283,6 +283,12 @@ a {
       animation-range: exit 5% exit 70%;
     }
 
+    @media (max-width: 59.99rem) {
+      .backdrop-scrim {
+        animation-range: exit 0% exit 32%;
+      }
+    }
+
     .backdrop-scrim-inner {
       animation: scrim-example-clear auto linear both;
       animation-timeline: --example-tl;

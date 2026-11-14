@@ -174,13 +174,34 @@ export const modelScaleById: Record<ModelKey, number> = {
   'station-facilities': 0.48,
 }
 
+export function getHeroNoseCameraPose(modelId: ModelKey): CameraPose {
+  switch (modelId) {
+    case 'df11':
+      return { position: [-14.0, 3.65, 6.9], target: [-7.8, 2.55, 0] }
+    case 'hxd3d':
+      return { position: [-13.8, 3.75, 6.9], target: [-7.6, 2.6, 0] }
+    case 'ss3':
+      return { position: [-13.4, 3.75, 6.8], target: [-7.2, 2.65, 0] }
+    case 'df11g':
+      return { position: [-25.0, 3.75, 7.2], target: [-18.6, 2.55, 0] }
+    case 'df11g-head':
+      return { position: [-7.6, 3.55, 6.6], target: [-1.4, 2.45, 0] }
+    default: {
+      const spec = showcaseModels.find((m) => m.id === modelId) ?? showcaseModels[0]
+      return { position: [...spec.defaultCamera], target: [...spec.defaultTarget] }
+    }
+  }
+}
+
 export function getSectionCameraPose(section: PageSectionKey, modelId: ModelKey): CameraPose {
   const s = modelScaleById[modelId]
   switch (section) {
+    case 'top':
+      return getHeroNoseCameraPose(modelId)
     case 'features':
       return {
-        position: [-13.6 * s, 2.1, 6.2 * s],
-        target: [-2.0 * s, 2.35, 0],
+        position: [-18.5 * s, 6.8 * Math.max(0.92, s * 0.8), 16.5 * s],
+        target: [0, 2.2, 0],
       }
     case 'stock':
       return {

@@ -3,8 +3,10 @@ import * as THREE from 'three'
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js'
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js'
 import {
+  getHeroNoseCameraPose,
   getSectionCameraPose,
   showcaseModels,
+  type CameraPose,
   type ModelKey,
   type PageSectionKey,
   type PartKey,
@@ -164,15 +166,45 @@ function buildBallastEmbankment(palette: ThemePalette): {
   return { group, ballastMat, earthMat }
 }
 
+function getHeroScrollProgress(vh: number): number {
+  const hero = getHeroElement()
+  if (!hero) return 1
+  const r = hero.getBoundingClientRect()
+  const span = Math.max(r.height * 0.85, vh * 0.72, 360)
+  return THREE.MathUtils.clamp(-r.top / span, 0, 1)
+}
+
+function getHeroScrollEase(progress: number, reducedMotion: boolean): number {
+  if (reducedMotion) return progress > 0.5 ? 1 : 0
+  return 1 - Math.pow(1 - progress, 1.85)
+}
+
+function interpolatePose(a: CameraPose, b: CameraPose, t: number): CameraPose {
+  return {
+    position: [
+      THREE.MathUtils.lerp(a.position[0], b.position[0], t),
+      THREE.MathUtils.lerp(a.position[1], b.position[1], t),
+      THREE.MathUtils.lerp(a.position[2], b.position[2], t),
+    ],
+    target: [
+      THREE.MathUtils.lerp(a.target[0], b.target[0], t),
+      THREE.MathUtils.lerp(a.target[1], b.target[1], t),
+      THREE.MathUtils.lerp(a.target[2], b.target[2], t),
+    ],
+  }
+}
+
 function computeDesiredFraming(
   vw: number,
   vh: number,
   section: PageSectionKey,
+  reducedMotion: boolean,
 ): {
   x: number
   y: number
   zoom: number
   inPortal: boolean
+  heroBlend: number
 } {
   const portal = getPortalElement()
   if (portal) {
@@ -184,20 +216,34 @@ function computeDesiredFraming(
         y: vh / 2 - (r.top + r.height / 2),
         zoom: z,
         inPortal: true,
+        heroBlend: 1,
       }
     }
   }
 
-  const hero = getHeroElement()
-  if (section === 'top' || (hero && hero.getBoundingClientRect().bottom > vh * 0.48)) {
+  const rawProgress = getHeroScrollProgress(vh)
+  if (rawProgress < 0.999 && (section === 'top' || section === 'features')) {
+    const t = getHeroScrollEase(rawProgress, reducedMotion)
     if (vw >= 960) {
-      // Shift train right and centered-high so left unboxed Hero + facts stay clear of cowcatcher
-      return { x: -vw * 0.285, y: vh * 0.02, zoom: 0.76, inPortal: false }
+      // Hero starts with an oversized nose close-up on the right and shrinks continuously as the page scrolls
+      return {
+        x: THREE.MathUtils.lerp(-vw * 0.285, 0, t),
+        y: THREE.MathUtils.lerp(vh * 0.01, 0, t),
+        zoom: THREE.MathUtils.lerp(1.08, 0.74, t),
+        inPortal: false,
+        heroBlend: t,
+      }
     }
-    return { x: 0, y: vh * 0.22, zoom: 0.9, inPortal: false }
+    return {
+      x: 0,
+      y: THREE.MathUtils.lerp(vh * 0.265, 0, t),
+      zoom: THREE.MathUtils.lerp(0.5, 0.38, t),
+      inPortal: false,
+      heroBlend: t,
+    }
   }
 
-  return { x: 0, y: 0, zoom: 0.86, inPortal: false }
+  return { x: 0, y: 0, zoom: vw >= 960 ? 0.74 : 0.38, inPortal: false, heroBlend: 1 }
 }
 
 export function TrainBackdrop() {
@@ -275,7 +321,7 @@ export function TrainBackdrop() {
 
     let vw = window.innerWidth || 1280
     let vh = window.innerHeight || 720
-    const initFrame = computeDesiredFraming(vw, vh, initial.activeSection)
+    const initFrame = computeDesiredFraming(vw, vh, initial.activeSection, initial.reducedMotion)
     let curOffX = initFrame.x
     let curOffY = initFrame.y
     let curZoom = initFrame.zoom
@@ -316,13 +362,15 @@ export function TrainBackdrop() {
     }
 
     const refreshTargetFraming = () => {
-      const next = computeDesiredFraming(vw, vh, getRailwayState().activeSection)
+      const st = getRailwayState()
+      const next = computeDesiredFraming(vw, vh, st.activeSection, st.reducedMotion)
       targetOffX = next.x
       targetOffY = next.y
       targetZoom = next.zoom
       if (next.inPortal) {
         curOffY = next.y
       }
+      return next
     }
 
     const stopLoop = () => {
@@ -468,11 +516,22 @@ export function TrainBackdrop() {
 
     const flyToPoseForCurrentContext = (section: PageSectionKey, modelId: ModelKey) => {
       const spec = getModelSpec(modelId)
+      const st = getRailwayState()
       if (section === 'example') {
-        const st = getRailwayState()
         const pose =
           (st.partId !== 'all' ? spec.partCameras[st.partId] : undefined) ??
           spec.viewPresets[st.viewId ?? 'overview']
+        desiredCamPos = new THREE.Vector3(...pose.position)
+        desiredTarget = new THREE.Vector3(...pose.target)
+      } else if (section === 'top' || section === 'features') {
+        const frame = computeDesiredFraming(vw, vh, section, st.reducedMotion)
+        const pose = frame.inPortal
+          ? getSectionCameraPose(section, modelId)
+          : interpolatePose(
+              getHeroNoseCameraPose(modelId),
+              getSectionCameraPose('features', modelId),
+              frame.heroBlend
+            )
         desiredCamPos = new THREE.Vector3(...pose.position)
         desiredTarget = new THREE.Vector3(...pose.target)
       } else {
@@ -480,6 +539,20 @@ export function TrainBackdrop() {
         desiredCamPos = new THREE.Vector3(...pose.position)
         desiredTarget = new THREE.Vector3(...pose.target)
       }
+    }
+
+    const syncHeroScrollCamera = (frame: ReturnType<typeof computeDesiredFraming>) => {
+      const st = getRailwayState()
+      if (frame.inPortal || userInteracting) return
+      if (st.activeSection !== 'top' && st.activeSection !== 'features') return
+      const modelId = activeAsset?.id ?? st.modelId
+      const pose = interpolatePose(
+        getHeroNoseCameraPose(modelId),
+        getSectionCameraPose('features', modelId),
+        frame.heroBlend
+      )
+      desiredCamPos = new THREE.Vector3(...pose.position)
+      desiredTarget = new THREE.Vector3(...pose.target)
     }
 
     let requestRenderFn: () => void = () => {}
@@ -567,9 +640,19 @@ export function TrainBackdrop() {
       }
       finalizeSwapImmediate(asset)
       const st = getRailwayState()
-      const pose = getSectionCameraPose(st.activeSection, id)
+      const initPoseFrame = computeDesiredFraming(vw, vh, st.activeSection, st.reducedMotion)
+      const pose =
+        !initPoseFrame.inPortal && (st.activeSection === 'top' || st.activeSection === 'features')
+          ? interpolatePose(
+              getHeroNoseCameraPose(id),
+              getSectionCameraPose('features', id),
+              initPoseFrame.heroBlend
+            )
+          : getSectionCameraPose(st.activeSection, id)
       camera.position.set(...pose.position)
       camTarget.set(...pose.target)
+      desiredCamPos = null
+      desiredTarget = null
       if (controls) {
         controls.target.copy(camTarget)
         controls.update()
@@ -669,7 +752,7 @@ export function TrainBackdrop() {
         }
 
         // Smooth view offset & zoom interpolation between Hero, reading sections, and #example portal
-        const frameStep = st.reducedMotion ? 1 : 1 - Math.exp(-10 * dt)
+        const frameStep = st.reducedMotion ? 1 : 1 - Math.exp(-12 * dt)
         const dxOff = targetOffX - curOffX
         const dyOff = targetOffY - curOffY
         const dZoom = targetZoom - curZoom
@@ -707,7 +790,9 @@ export function TrainBackdrop() {
 
         // Smooth per-section & preset camera flight
         if (desiredCamPos && desiredTarget) {
-          const camStep = st.reducedMotion ? 1 : 1 - Math.exp(-6.5 * dt)
+          const camRate =
+            st.activeSection === 'top' || st.activeSection === 'features' ? -10.5 : -6.5
+          const camStep = st.reducedMotion ? 1 : 1 - Math.exp(camRate * dt)
           camera.position.lerp(desiredCamPos, camStep)
           camTarget.lerp(desiredTarget, camStep)
           if (controls) controls.target.copy(camTarget)
@@ -978,13 +1063,15 @@ export function TrainBackdrop() {
 
     const onScrollOrResize = () => {
       applySize()
-      refreshTargetFraming()
+      const frame = refreshTargetFraming()
+      syncHeroScrollCamera(frame)
       requestRender()
     }
 
     const onScrollOnly = () => {
-      refreshTargetFraming()
+      const frame = refreshTargetFraming()
       applyProjection()
+      syncHeroScrollCamera(frame)
       requestRender()
     }
 
